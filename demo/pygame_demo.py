@@ -131,6 +131,11 @@ class PygameOSVDemo:
             vectors.append((x_b, y_b, fxb, fyb, i))
         return vectors
 
+    def _force_vector_delta_px(self, fxb: float, fyb: float):
+        dx = fyb * self.cfg.force_scale_px_per_n
+        dy = -fxb * self.cfg.force_scale_px_per_n
+        return dx, dy
+
     def _draw_text(
         self, surface, font, x: int, y: int, text: str, color=(220, 230, 235)
     ):
@@ -163,7 +168,7 @@ class PygameOSVDemo:
             pygame.draw.lines(surface, (84, 170, 255), False, path, 2)
 
         nose, port, starboard = self._compute_left_ship_triangle(psi)
-        pygame.draw.polygon(surface, (236, 224, 145), [nose, port, starboard])
+        pygame.draw.polygon(surface, (236, 224, 145), [nose, port, starboard], width=2)
         pygame.draw.circle(
             surface,
             (255, 255, 255),
@@ -211,13 +216,7 @@ class PygameOSVDemo:
 
         for xb, yb, fxb, fyb, idx in vectors:
             sx, sy = self._body_to_right_screen(xb, yb)
-            dx = fyb * self.cfg.force_scale_px_per_n
-            dy = -fxb * self.cfg.force_scale_px_per_n
-            length = math.hypot(dx, dy)
-            if length > 0.0 and length < 12.0:
-                scale = 12.0 / length
-                dx *= scale
-                dy *= scale
+            dx, dy = self._force_vector_delta_px(fxb, fyb)
             ex = sx + dx
             ey = sy + dy
             pygame.draw.circle(surface, colors[idx], (int(sx), int(sy)), 4)

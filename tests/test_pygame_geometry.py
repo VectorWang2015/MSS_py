@@ -38,6 +38,14 @@ class TestPygameGeometry(unittest.TestCase):
         self.assertAlmostEqual(s1[0], s2[0])
         self.assertAlmostEqual(s1[1], s2[1])
 
+    def test_force_vector_pixel_length_is_proportional(self):
+        dx1, dy1 = self.demo._force_vector_delta_px(100.0, 0.0)
+        dx2, dy2 = self.demo._force_vector_delta_px(200.0, 0.0)
+        l1 = math.hypot(dx1, dy1)
+        l2 = math.hypot(dx2, dy2)
+        self.assertGreater(l1, 0.0)
+        self.assertAlmostEqual(l2 / l1, 2.0, places=6)
+
 
 if __name__ == "__main__":
     unittest.main()
