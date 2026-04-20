@@ -1,12 +1,12 @@
 # MSS_simulator_py
 
-这是一个面向 MSS（Marine Systems Simulator）的 Python 仿真仓库，目前已实现 **OSV（Offshore Supply Vessel）动力学 plant** 的第一阶段版本。
+这是一个面向 MSS（Marine Systems Simulator）的 Python 仿真仓库，目前已实现 **OSV（Offshore Supply Vessel）的动力学模型，可用于仿真** 。
 
 ## 目前包含什么
 
 - `MSS_simulator_py/osv/`
   - OSV 动力学核心模型（参数沿用 MSS `osv.m`）
-  - 额外提供一套 `custom params`（只调整尾部两台推进器上限，统一为右侧推进器配置）
+  -  `custom params`（推荐参数，修改了原参数左推进器，使左右对称）
   - 支持输入：`rpm + azimuth + current + tau_env_ned`
   - 支持输出：`xdot` 与 RK4 单步积分状态
 - `demo/`
@@ -46,7 +46,7 @@ conda run -n osv_demo python -m demo.demo
 from MSS_simulator_py.osv import OSVDynamics, load_osv_params, load_osv_custom_params
 
 base = load_osv_params()         # 原始参数（贴近 MSS osv.m）
-custom = load_osv_custom_params()# 仅尾部推进器上限做对称化
+custom = load_osv_custom_params()# 推荐，确保左右推进器对称，仅尾部推进器上限做对称化
 
 model = OSVDynamics(params=custom)
 ```
