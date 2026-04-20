@@ -46,6 +46,31 @@ class TestPygameGeometry(unittest.TestCase):
         self.assertGreater(l1, 0.0)
         self.assertAlmostEqual(l2 / l1, 2.0, places=6)
 
+    def test_ned_vector_delta_direction(self):
+        dx_n, dy_n = self.demo._ned_vector_delta_px(1.0, 0.0, scale=10.0)
+        dx_e, dy_e = self.demo._ned_vector_delta_px(0.0, 1.0, scale=10.0)
+        self.assertAlmostEqual(dx_n, 0.0)
+        self.assertAlmostEqual(dy_n, -10.0)
+        self.assertAlmostEqual(dx_e, 10.0)
+        self.assertAlmostEqual(dy_e, 0.0)
+
+    def test_current_and_tau_vectors_are_ned_components(self):
+        self.demo.control_state = self.demo.control_state.__class__(
+            rpm=self.demo.control_state.rpm,
+            azimuth=self.demo.control_state.azimuth,
+            current_speed=2.0,
+            current_direction=math.pi / 2.0,
+            tau_env_ned=np.array([300.0, -100.0, 0.0, 0.0, 0.0, 0.0]),
+            paused=self.demo.control_state.paused,
+        )
+        current_n, current_e, tau_n, tau_e = (
+            self.demo._compute_ned_environment_vectors()
+        )
+        self.assertAlmostEqual(current_n, 0.0, places=7)
+        self.assertAlmostEqual(current_e, 2.0, places=7)
+        self.assertAlmostEqual(tau_n, 300.0)
+        self.assertAlmostEqual(tau_e, -100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

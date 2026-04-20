@@ -84,9 +84,9 @@ def apply_action(
     elif action == "current_speed_down":
         current_speed -= cfg.current_speed_step
     elif action == "current_dir_left":
-        current_dir -= cfg.current_dir_step
-    elif action == "current_dir_right":
         current_dir += cfg.current_dir_step
+    elif action == "current_dir_right":
+        current_dir -= cfg.current_dir_step
     elif action == "tau_x_plus":
         tau[0] += cfg.tau_force_step
     elif action == "tau_x_minus":

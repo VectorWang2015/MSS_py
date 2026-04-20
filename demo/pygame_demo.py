@@ -17,6 +17,8 @@ class DemoRuntimeConfig:
     map_scale_px_per_m: float = 2.0
     body_scale_px_per_m: float = 3.0
     force_scale_px_per_n: float = 1.0 / 8000.0
+    current_ned_scale_px_per_mps: float = 30.0
+    tau_ned_scale_px_per_n: float = 1.0 / 120.0
     max_path_points: int = 3000
     left_ratio: float = 0.62
 
@@ -136,6 +138,20 @@ class PygameOSVDemo:
         dy = -fxb * self.cfg.force_scale_px_per_n
         return dx, dy
 
+    def _ned_vector_delta_px(self, north_comp: float, east_comp: float, scale: float):
+        dx = east_comp * scale
+        dy = -north_comp * scale
+        return dx, dy
+
+    def _compute_ned_environment_vectors(self):
+        vc = self.control_state.current_speed
+        beta = self.control_state.current_direction
+        current_n = vc * math.cos(beta)
+        current_e = vc * math.sin(beta)
+        tau_n = float(self.control_state.tau_env_ned[0])
+        tau_e = float(self.control_state.tau_env_ned[1])
+        return current_n, current_e, tau_n, tau_e
+
     def _draw_text(
         self, surface, font, x: int, y: int, text: str, color=(220, 230, 235)
     ):
@@ -167,17 +183,49 @@ class PygameOSVDemo:
             ]
             pygame.draw.lines(surface, (84, 170, 255), False, path, 2)
 
+        title_font = pygame.font.SysFont("monospace", 18)
+        small = pygame.font.SysFont("monospace", 15)
+
         nose, port, starboard = self._compute_left_ship_triangle(psi)
         pygame.draw.polygon(surface, (236, 224, 145), [nose, port, starboard], width=2)
+        center = self._left_center()
+
+        current_n, current_e, tau_n, tau_e = self._compute_ned_environment_vectors()
+        cur_dx, cur_dy = self._ned_vector_delta_px(
+            current_n, current_e, self.cfg.current_ned_scale_px_per_mps
+        )
+        tau_dx, tau_dy = self._ned_vector_delta_px(
+            tau_n, tau_e, self.cfg.tau_ned_scale_px_per_n
+        )
+
+        cur_end = (center[0] + cur_dx, center[1] + cur_dy)
+        tau_end = (center[0] + tau_dx, center[1] + tau_dy)
+        pygame.draw.line(surface, (120, 255, 200), center, cur_end, 3)
+        pygame.draw.line(surface, (255, 150, 120), center, tau_end, 3)
+        self._draw_text(
+            surface,
+            small,
+            int(cur_end[0] + 6),
+            int(cur_end[1]),
+            "current NED",
+            (120, 255, 200),
+        )
+        self._draw_text(
+            surface,
+            small,
+            int(tau_end[0] + 6),
+            int(tau_end[1]),
+            "tau NED",
+            (255, 150, 120),
+        )
+
         pygame.draw.circle(
             surface,
             (255, 255, 255),
-            (int(self._left_center()[0]), int(self._left_center()[1])),
+            (int(center[0]), int(center[1])),
             2,
         )
 
-        title_font = pygame.font.SysFont("monospace", 18)
-        small = pygame.font.SysFont("monospace", 15)
         self._draw_text(
             surface, title_font, left[0] + 16, 16, "Map View (ship centered)"
         )
@@ -187,6 +235,13 @@ class PygameOSVDemo:
             left[0] + 16,
             42,
             f"NED: N={north:7.2f} m  E={east:7.2f} m  psi={math.degrees(psi):6.2f} deg",
+        )
+        self._draw_text(
+            surface,
+            small,
+            left[0] + 16,
+            64,
+            f"NED current: Vn={current_n:6.3f} Ve={current_e:6.3f} m/s | tau: Xn={tau_n:7.1f} Ye={tau_e:7.1f}",
         )
 
     def _draw_right_panel(self, surface):
@@ -261,30 +316,20 @@ class PygameOSVDemo:
             "n1,n2: bow tunnel; n3,n4: stern azimuth (demo custom: n3=n4)",
         )
 
-        vc = self.control_state.current_speed
-        beta = self.control_state.current_direction
-        psi = float(self.state[11])
-        u_c = vc * math.cos(beta - psi)
-        v_c = vc * math.sin(beta - psi)
-        env = OSVEnvironment(
-            current_speed=vc,
-            current_direction=beta,
-            tau_env_ned=self.control_state.tau_env_ned,
-        )
-        tau_body = self.model._tau_env_body(self.state[6:12], env)
+        current_n, current_e, tau_n, tau_e = self._compute_ned_environment_vectors()
         self._draw_text(
             surface,
             small,
             right[0] + 16,
             136,
-            f"BODY current: u_c={u_c:6.3f} v_c={v_c:6.3f} m/s",
+            f"NED current: Vn={current_n:6.3f} Ve={current_e:6.3f} m/s",
         )
         self._draw_text(
             surface,
             small,
             right[0] + 16,
             158,
-            f"BODY tau_env: X={tau_body[0]:7.1f} Y={tau_body[1]:7.1f} N={tau_body[5]:7.1f}",
+            f"NED tau_env: Xn={tau_n:7.1f} Ye={tau_e:7.1f} Nd={self.control_state.tau_env_ned[5]:7.1f}",
         )
 
         self._draw_text(

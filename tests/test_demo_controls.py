@@ -37,6 +37,14 @@ class TestDemoControls(unittest.TestCase):
         self.assertEqual(u.shape, (6,))
         self.assertTrue(np.allclose(u[:4], [10.0, 20.0, 30.0, 40.0]))
 
+    def test_current_direction_key_semantics(self):
+        cfg = DemoConfig()
+        s = DemoControlState(current_direction=0.0)
+        s = apply_action(s, cfg, "current_dir_left")
+        self.assertGreater(s.current_direction, 0.0)
+        s = apply_action(s, cfg, "current_dir_right")
+        self.assertAlmostEqual(s.current_direction, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
