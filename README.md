@@ -56,3 +56,61 @@ model = OSVDynamics(params=custom)
 - 核心动力学扩展：优先在 `MSS_simulator_py/osv/` 内增加
 - 新船型：建议新增平级子模块，如 `MSS_simulator_py/<vessel_name>/`
 - 交互/可视化：优先放在 `demo/`，避免污染核心模块
+
+## 开发说明（参数加载与逐步仿真调用）
+
+### 参数加载
+
+- 原始参数（贴近 MSS `osv.m`）：`load_osv_params()`
+- 自定义参数（当前用于 demo，尾部两台推进器上限对称化）：`load_osv_custom_params()`
+
+### 每步仿真接口
+
+核心类：`OSVDynamics`
+
+- `derivatives(state, control, env) -> xdot`
+  - 输入当前状态/控制/环境
+  - 返回连续时间导数 `xdot`
+- `step_rk4(state, control, dt, env) -> state_next`
+  - 输入当前状态/控制/步长/环境
+  - 返回离散一步积分后的新状态
+
+### 输入定义
+
+- `state`：`shape=(12,)`
+  - `[u, v, w, p, q, r, north, east, down, phi, theta, psi]`
+- `control`：`shape=(6,)`
+  - `[n1, n2, n3, n4, a1, a2]`
+  - `n*` 单位是 RPM，`a*` 单位是 rad
+- `env`：`OSVEnvironment`
+  - `current_speed`：海流速度 `Vc`（m/s）
+  - `current_direction`：海流方向 `beta`（rad, NED）
+  - `tau_env_ned`：外扰广义力 `shape=(6,)`，NED 系 `[X, Y, Z, K, M, N]`
+
+### 输出定义
+
+- `xdot`：`shape=(12,)`，状态导数
+- `state_next`：`shape=(12,)`，一步更新状态
+
+### 最小调用示例
+
+```python
+import numpy as np
+
+from MSS_simulator_py.osv import OSVDynamics, OSVEnvironment, load_osv_custom_params
+
+params = load_osv_custom_params()  # 或 load_osv_params()
+model = OSVDynamics(params=params)
+
+state = np.zeros(12)
+control = np.array([0.0, 0.0, 120.0, 120.0, 0.0, 0.0])
+env = OSVEnvironment(
+    current_speed=0.4,
+    current_direction=np.deg2rad(-140.0),
+    tau_env_ned=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+)
+
+dt = 0.02
+for _ in range(500):
+    state = model.step_rk4(state, control, dt, env)
+```
