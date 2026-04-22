@@ -7,8 +7,9 @@
 - `MSS_simulator_py/osv/`
   - OSV 动力学核心模型（参数沿用 MSS `osv.m`）
   -  `custom params`（推荐参数，修改了原参数左推进器，使左右对称）
-  - 支持输入：`rpm + azimuth + current + tau_env_ned`
+  - 支持输入：`rpm + azimuth + current + wind + tau_env_ned`
   - 支持输出：`xdot` 与 RK4 单步积分状态
+  - 风模型参数与 OSV 主参数隔离：`MSS_simulator_py/osv/wind_simple.py`
 - `demo/`
   - `pygame` 交互 demo（放在模块外，便于后续扩展）
   - demo 默认使用 `custom params`
@@ -43,12 +44,18 @@ conda run -n osv_demo python -m demo.demo
 ### 3) 在代码中加载参数
 
 ```python
-from MSS_simulator_py.osv import OSVDynamics, load_osv_params, load_osv_custom_params
+from MSS_simulator_py.osv import (
+    OSVDynamics,
+    load_osv_params,
+    load_osv_custom_params,
+    load_osv_wind_simple_params,
+)
 
 base = load_osv_params()         # 原始参数（贴近 MSS osv.m）
 custom = load_osv_custom_params()# 推荐，确保左右推进器对称，仅尾部推进器上限做对称化
 
-model = OSVDynamics(params=custom)
+wind = load_osv_wind_simple_params()  # OSV风参数（独立于OSV主参数）
+model = OSVDynamics(params=custom, wind_params=wind)
 ```
 
 ## 代码结构建议
@@ -85,6 +92,8 @@ model = OSVDynamics(params=custom)
 - `env`：`OSVEnvironment`
   - `current_speed`：海流速度 `Vc`（m/s）
   - `current_direction`：海流方向 `beta`（rad, NED）
+  - `wind_speed`：风速 `Vw`（m/s, NED）
+  - `wind_direction`：风向 `betaVw`（rad, NED，从北顺时针）
   - `tau_env_ned`：外扰广义力 `shape=(6,)`，NED 系 `[X, Y, Z, K, M, N]`
 
 ### 输出定义
@@ -107,6 +116,8 @@ control = np.array([0.0, 0.0, 120.0, 120.0, 0.0, 0.0])
 env = OSVEnvironment(
     current_speed=0.4,
     current_direction=np.deg2rad(-140.0),
+    wind_speed=8.0,
+    wind_direction=np.deg2rad(30.0),
     tau_env_ned=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
 )
 

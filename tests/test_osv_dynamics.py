@@ -32,6 +32,25 @@ class TestOSVDynamics(unittest.TestCase):
         xdot = self.model.derivatives(x, self.u0, env)
         self.assertGreater(abs(xdot[1]), 1e-8)
 
+    def test_ned_wind_input_changes_dynamics(self):
+        env = OSVEnvironment(
+            current_speed=0.0,
+            current_direction=0.0,
+            tau_env_ned=np.zeros(6),
+            wind_speed=8.0,
+            wind_direction=0.0,
+        )
+        xdot = self.model.derivatives(self.x0, self.u0, env)
+        self.assertGreater(abs(xdot[0]) + abs(xdot[1]) + abs(xdot[5]), 1e-8)
+
+    def test_wind_force_scales_with_speed_squared(self):
+        env1 = OSVEnvironment(wind_speed=4.0, wind_direction=0.0)
+        env2 = OSVEnvironment(wind_speed=8.0, wind_direction=0.0)
+        tau1 = self.model._tau_wind_body(self.x0, env1)
+        tau2 = self.model._tau_wind_body(self.x0, env2)
+        self.assertGreater(abs(tau1[0]), 0.0)
+        self.assertAlmostEqual(tau2[0] / tau1[0], 4.0, places=6)
+
 
 if __name__ == "__main__":
     unittest.main()

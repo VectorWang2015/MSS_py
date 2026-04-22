@@ -13,6 +13,11 @@ from .math_utils import (
     thr_config,
 )
 from .params import OSVParams, load_osv_params
+from .wind_simple import (
+    OSVWindSimpleParams,
+    load_osv_wind_simple_params,
+    wind_velocity_ned,
+)
 
 
 @dataclass
@@ -20,6 +25,8 @@ class OSVEnvironment:
     current_speed: float = 0.0
     current_direction: float = 0.0
     tau_env_ned: np.ndarray | None = None
+    wind_speed: float = 0.0
+    wind_direction: float = 0.0
 
     def disturbance_ned(self) -> np.ndarray:
         if self.tau_env_ned is None:
@@ -29,8 +36,15 @@ class OSVEnvironment:
 
 
 class OSVDynamics:
-    def __init__(self, params: OSVParams | None = None):
+    def __init__(
+        self,
+        params: OSVParams | None = None,
+        wind_params: OSVWindSimpleParams | None = None,
+    ):
         self.params = params if params is not None else load_osv_params()
+        self.wind_params = (
+            wind_params if wind_params is not None else load_osv_wind_simple_params()
+        )
 
     def _tau_env_body(self, eta: np.ndarray, env: OSVEnvironment) -> np.ndarray:
         tau_ned = env.disturbance_ned()
@@ -50,6 +64,37 @@ class OSVDynamics:
         u_thr = np.abs(n_rpm) * n_rpm
         tau_3dof = t_thr @ p.k_thr @ u_thr
         return np.array([tau_3dof[0], tau_3dof[1], 0.0, 0.0, 0.0, tau_3dof[2]])
+
+    def _tau_wind_body(self, state: np.ndarray, env: OSVEnvironment) -> np.ndarray:
+        x = np.asarray(state, dtype=float).reshape(12)
+        nu = x[0:6]
+        eta = x[6:12]
+
+        phi, theta, psi = float(eta[3]), float(eta[4]), float(eta[5])
+        r_nb = rzyx(phi, theta, psi)
+        v_w_ned = wind_velocity_ned(env.wind_speed, env.wind_direction)
+        v_w_body = r_nb.T @ v_w_ned
+
+        u_rw = float(v_w_body[0] - nu[0])
+        v_rw = float(v_w_body[1] - nu[1])
+        v_mag = np.hypot(u_rw, v_rw)
+        if v_mag < 1e-12:
+            return np.zeros(6)
+
+        q = 0.5 * self.wind_params.rho_air * v_mag * v_mag
+        u_dir = u_rw / v_mag
+        v_dir = v_rw / v_mag
+
+        x_w = q * self.wind_params.afw * self.wind_params.c_x * u_dir
+        y_w = q * self.wind_params.alw * self.wind_params.c_y * v_dir
+        n_w = (
+            q
+            * self.wind_params.alw
+            * self.wind_params.l_ref
+            * self.wind_params.c_n
+            * v_dir
+        )
+        return np.array([x_w, y_w, 0.0, 0.0, 0.0, n_w])
 
     def derivatives(
         self, state: np.ndarray, control: np.ndarray, env: OSVEnvironment | None = None
@@ -97,6 +142,7 @@ class OSVDynamics:
         tau_cross = crossflow_drag(p.l, p.b, p.t, nu_r)
         tau_thr = self._tau_thr(control)
         tau_env_body = self._tau_env_body(eta, env)
+        tau_wind_body = self._tau_wind_body(x, env)
 
         d_eff = p.d.copy()
         d_eff[0, 0] = 0.0
@@ -109,6 +155,7 @@ class OSVDynamics:
             + tau_drag
             + tau_cross
             + tau_env_body
+            + tau_wind_body
             - (crb + ca + d_eff) @ nu_r
             - p.g_matrix @ eta
         )
