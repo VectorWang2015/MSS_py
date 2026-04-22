@@ -23,6 +23,8 @@ class DemoControlState:
     azimuth: np.ndarray = field(default_factory=lambda: np.zeros(2))
     current_speed: float = 0.0
     current_direction: float = 0.0
+    wind_speed: float = 0.0
+    wind_direction: float = 0.0
     tau_env_ned: np.ndarray = field(default_factory=lambda: np.zeros(6))
     paused: bool = False
 
@@ -40,6 +42,8 @@ def _clip_state(s: DemoControlState, cfg: DemoConfig) -> DemoControlState:
         azimuth=azimuth,
         current_speed=max(0.0, s.current_speed),
         current_direction=s.current_direction,
+        wind_speed=max(0.0, s.wind_speed),
+        wind_direction=s.wind_direction,
         tau_env_ned=s.tau_env_ned,
         paused=s.paused,
     )
@@ -53,6 +57,8 @@ def apply_action(
     tau = state.tau_env_ned.copy()
     current_speed = float(state.current_speed)
     current_dir = float(state.current_direction)
+    wind_speed = float(state.wind_speed)
+    wind_dir = float(state.wind_direction)
     paused = bool(state.paused)
 
     if action == "n1_up":
@@ -87,6 +93,14 @@ def apply_action(
         current_dir += cfg.current_dir_step
     elif action == "current_dir_right":
         current_dir -= cfg.current_dir_step
+    elif action == "wind_speed_up":
+        wind_speed += cfg.current_speed_step
+    elif action == "wind_speed_down":
+        wind_speed -= cfg.current_speed_step
+    elif action == "wind_dir_plus":
+        wind_dir += cfg.current_dir_step
+    elif action == "wind_dir_minus":
+        wind_dir -= cfg.current_dir_step
     elif action == "tau_x_plus":
         tau[0] += cfg.tau_force_step
     elif action == "tau_x_minus":
@@ -107,6 +121,8 @@ def apply_action(
         tau[:] = 0.0
         current_speed = 0.0
         current_dir = 0.0
+        wind_speed = 0.0
+        wind_dir = 0.0
 
     return _clip_state(
         DemoControlState(
@@ -114,6 +130,8 @@ def apply_action(
             azimuth=az,
             current_speed=current_speed,
             current_direction=current_dir,
+            wind_speed=wind_speed,
+            wind_direction=wind_dir,
             tau_env_ned=tau,
             paused=paused,
         ),

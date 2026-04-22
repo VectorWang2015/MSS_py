@@ -60,14 +60,18 @@ class TestPygameGeometry(unittest.TestCase):
             azimuth=self.demo.control_state.azimuth,
             current_speed=2.0,
             current_direction=math.pi / 2.0,
+            wind_speed=3.0,
+            wind_direction=0.0,
             tau_env_ned=np.array([300.0, -100.0, 0.0, 0.0, 0.0, 0.0]),
             paused=self.demo.control_state.paused,
         )
-        current_n, current_e, tau_n, tau_e = (
+        current_n, current_e, wind_n, wind_e, tau_n, tau_e = (
             self.demo._compute_ned_environment_vectors()
         )
         self.assertAlmostEqual(current_n, 0.0, places=7)
         self.assertAlmostEqual(current_e, 2.0, places=7)
+        self.assertAlmostEqual(wind_n, 3.0, places=7)
+        self.assertAlmostEqual(wind_e, 0.0, places=7)
         self.assertAlmostEqual(tau_n, 300.0)
         self.assertAlmostEqual(tau_e, -100.0)
 

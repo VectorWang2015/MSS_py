@@ -52,6 +52,10 @@ class PygameOSVDemo:
             pygame.K_g: "current_speed_down",
             pygame.K_y: "current_dir_left",
             pygame.K_h: "current_dir_right",
+            pygame.K_u: "wind_speed_up",
+            pygame.K_j: "wind_speed_down",
+            pygame.K_n: "wind_dir_plus",
+            pygame.K_m: "wind_dir_minus",
             pygame.K_i: "tau_x_plus",
             pygame.K_k: "tau_x_minus",
             pygame.K_o: "tau_y_plus",
@@ -148,9 +152,13 @@ class PygameOSVDemo:
         beta = self.control_state.current_direction
         current_n = vc * math.cos(beta)
         current_e = vc * math.sin(beta)
+        vw = self.control_state.wind_speed
+        beta_w = self.control_state.wind_direction
+        wind_n = vw * math.cos(beta_w)
+        wind_e = vw * math.sin(beta_w)
         tau_n = float(self.control_state.tau_env_ned[0])
         tau_e = float(self.control_state.tau_env_ned[1])
-        return current_n, current_e, tau_n, tau_e
+        return current_n, current_e, wind_n, wind_e, tau_n, tau_e
 
     def _draw_text(
         self, surface, font, x: int, y: int, text: str, color=(220, 230, 235)
@@ -190,17 +198,24 @@ class PygameOSVDemo:
         pygame.draw.polygon(surface, (236, 224, 145), [nose, port, starboard], width=2)
         center = self._left_center()
 
-        current_n, current_e, tau_n, tau_e = self._compute_ned_environment_vectors()
+        current_n, current_e, wind_n, wind_e, tau_n, tau_e = (
+            self._compute_ned_environment_vectors()
+        )
         cur_dx, cur_dy = self._ned_vector_delta_px(
             current_n, current_e, self.cfg.current_ned_scale_px_per_mps
+        )
+        wind_dx, wind_dy = self._ned_vector_delta_px(
+            wind_n, wind_e, self.cfg.current_ned_scale_px_per_mps
         )
         tau_dx, tau_dy = self._ned_vector_delta_px(
             tau_n, tau_e, self.cfg.tau_ned_scale_px_per_n
         )
 
         cur_end = (center[0] + cur_dx, center[1] + cur_dy)
+        wind_end = (center[0] + wind_dx, center[1] + wind_dy)
         tau_end = (center[0] + tau_dx, center[1] + tau_dy)
         pygame.draw.line(surface, (120, 255, 200), center, cur_end, 3)
+        pygame.draw.line(surface, (140, 180, 255), center, wind_end, 3)
         pygame.draw.line(surface, (255, 150, 120), center, tau_end, 3)
         self._draw_text(
             surface,
@@ -209,6 +224,14 @@ class PygameOSVDemo:
             int(cur_end[1]),
             "current NED",
             (120, 255, 200),
+        )
+        self._draw_text(
+            surface,
+            small,
+            int(wind_end[0] + 6),
+            int(wind_end[1]),
+            "wind NED",
+            (140, 180, 255),
         )
         self._draw_text(
             surface,
@@ -241,7 +264,14 @@ class PygameOSVDemo:
             small,
             left[0] + 16,
             64,
-            f"NED current: Vn={current_n:6.3f} Ve={current_e:6.3f} m/s | tau: Xn={tau_n:7.1f} Ye={tau_e:7.1f}",
+            f"NED current: Vn={current_n:6.3f} Ve={current_e:6.3f} | wind: Wn={wind_n:6.3f} We={wind_e:6.3f}",
+        )
+        self._draw_text(
+            surface,
+            small,
+            left[0] + 16,
+            86,
+            f"NED tau_env: Xn={tau_n:7.1f} Ye={tau_e:7.1f}",
         )
 
     def _draw_right_panel(self, surface):
@@ -316,7 +346,9 @@ class PygameOSVDemo:
             "n1,n2: bow tunnel; n3,n4: stern azimuth (demo custom: n3=n4)",
         )
 
-        current_n, current_e, tau_n, tau_e = self._compute_ned_environment_vectors()
+        current_n, current_e, wind_n, wind_e, tau_n, tau_e = (
+            self._compute_ned_environment_vectors()
+        )
         self._draw_text(
             surface,
             small,
@@ -329,6 +361,13 @@ class PygameOSVDemo:
             small,
             right[0] + 16,
             158,
+            f"NED wind: Wn={wind_n:6.3f} We={wind_e:6.3f} m/s",
+        )
+        self._draw_text(
+            surface,
+            small,
+            right[0] + 16,
+            180,
             f"NED tau_env: Xn={tau_n:7.1f} Ye={tau_e:7.1f} Nd={self.control_state.tau_env_ned[5]:7.1f}",
         )
 
@@ -336,29 +375,36 @@ class PygameOSVDemo:
             surface,
             small,
             right[0] + 16,
-            self.cfg.height - 110,
+            self.cfg.height - 132,
             "q/a,w/s: n1,n2 bow tunnel +/-",
         )
         self._draw_text(
             surface,
             small,
             right[0] + 16,
-            self.cfg.height - 88,
+            self.cfg.height - 110,
             "e/d,r/f: n3,n4 stern azimuth +/-",
         )
         self._draw_text(
             surface,
             small,
             right[0] + 16,
-            self.cfg.height - 66,
+            self.cfg.height - 88,
             "z/x: a1 +/-   c/v: a2 +/-",
         )
         self._draw_text(
             surface,
             small,
             right[0] + 16,
-            self.cfg.height - 44,
+            self.cfg.height - 66,
             "t/g: Vc +/-   y/h: beta(NED) +/-",
+        )
+        self._draw_text(
+            surface,
+            small,
+            right[0] + 16,
+            self.cfg.height - 44,
+            "u/j: Vw +/-   n/m: beta_w(NED) +/-",
         )
         self._draw_text(
             surface,
@@ -410,6 +456,8 @@ class PygameOSVDemo:
                         current_speed=self.control_state.current_speed,
                         current_direction=self.control_state.current_direction,
                         tau_env_ned=self.control_state.tau_env_ned,
+                        wind_speed=self.control_state.wind_speed,
+                        wind_direction=self.control_state.wind_direction,
                     )
                     self.state = self.model.step_rk4(self.state, u, self.cfg.dt, env)
                     self.path_world.append((float(self.state[6]), float(self.state[7])))

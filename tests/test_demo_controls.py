@@ -45,6 +45,14 @@ class TestDemoControls(unittest.TestCase):
         s = apply_action(s, cfg, "current_dir_right")
         self.assertAlmostEqual(s.current_direction, 0.0)
 
+    def test_wind_speed_and_direction_actions(self):
+        cfg = DemoConfig()
+        s = DemoControlState(wind_speed=0.0, wind_direction=0.0)
+        s = apply_action(s, cfg, "wind_speed_up")
+        self.assertGreater(s.wind_speed, 0.0)
+        s = apply_action(s, cfg, "wind_dir_plus")
+        self.assertGreater(s.wind_direction, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
