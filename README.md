@@ -125,3 +125,81 @@ dt = 0.02
 for _ in range(500):
     state = model.step_rk4(state, control, dt, env)
 ```
+
+## dp_env —— 动态定位 (DP) Gym 环境
+
+`dp_env` 是一个基于 Gymnasium 的船舶动态定位强化学习环境。底层物理模型使用 `MSS_simulator_py` (6DOF OSV83 动力学)，环境输出 11 维观测，接收 4 维推进器归一化指令。
+
+DP 是一个持续控制任务，没有“到达即终止”的逻辑；环境在 `timeout_s` 后 `truncated=True`。
+
+### 观测（11 维）
+
+- `d_norm_L`：控制点到目标点的归一化距离（船长尺度）
+- `cos(dpsi), sin(dpsi)`：艏向误差编码
+- `cos(eta), sin(eta)`：目标方位角编码（船头坐标系）
+- `u, v, r`：速度状态
+- `du, dv, dr`：直接由动力学导数得到的加速度项
+
+### 动作（4 维）
+
+- 动作空间：`Box([-1, -1, -1, -1], [1, 1, 1, 1])`
+- 映射方式：`rpm = action * n_max`
+- 对应推进器：`n1, n2` 艏隧道；`n3, n4` 艉全回转（方位角固定）
+
+### 时间步长
+
+- `control_dt = 1.0 s`
+- `integration_substeps = 8`
+- 实际积分步长：`0.125 s`（RK4）
+
+### 默认奖励
+
+`dp_env/reward.py` 默认奖励为：
+
+`R = -w_distance * d_norm_L + w_yaw * (1 + cos(dpsi))`
+
+你可以直接改 `dp_env/reward.py`，或者用 `demo_gym/my_reward.py` 的 `CustomRewardWrapper` 覆盖奖励。
+
+### 使用示例
+
+```python
+import numpy as np
+from dp_env import VesselDPEnv, EnvConfig
+
+cfg = EnvConfig()
+env = VesselDPEnv(cfg)
+
+obs, info = env.reset(seed=0)
+while True:
+    action = np.random.uniform(-1, 1, (4,)).astype(np.float32)
+    obs, reward, terminated, truncated, info = env.step(action)
+    if truncated:
+        break
+```
+
+### 关键配置（`dp_env/config.py`）
+
+- `ShipConfig`：控制点偏移、推进器固定方位角、海流/风参数、观测裁剪
+- `TaskConfig`：目标点、目标艏向、起点随机化、超时与积分参数
+- `EnvConfig`：`ship + task` 顶层配置容器
+
+### 文件结构
+
+```text
+dp_env/
+├── __init__.py
+├── config.py
+├── env.py
+└── reward.py
+```
+
+## demo_gym（训练与演示脚本）
+
+- `demo_gym/demo_random.py`：随机动作跑环境，打印轨迹/奖励信息
+- `demo_gym/my_reward.py`：奖励包装器，不改环境核心即可试验新奖励
+- `demo_gym/train_ddpg.py`：基于 Tianshou 的 DDPG 训练脚本
+
+```bash
+python demo_gym/demo_random.py
+python demo_gym/train_ddpg.py
+```
