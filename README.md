@@ -211,8 +211,10 @@ dp_env/
 - `demo_gym/demo_random.py`：随机动作跑环境，打印轨迹/奖励信息
 - `demo_gym/my_reward.py`：奖励包装器（推荐且唯一的奖励修改入口）
 - `demo_gym/train_ddpg.py`：基于 Tianshou 的 DDPG 训练脚本（默认通过 `ActionMaskWrapper` 保持4维策略接口）
+- `demo_action_modes.py`：对比三种动作模式（`full_6d` / `legacy_4d_fixed_azimuth` / `legacy_4d_mask_bow`），三者都叠加 `CustomRewardWrapper`，各随机采样运行20步并打印
 
 ```bash
 python demo_gym/demo_random.py
 python demo_gym/train_ddpg.py
+python demo_action_modes.py
 ```
