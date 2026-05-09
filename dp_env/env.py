@@ -100,7 +100,7 @@ class VesselDPEnv(gym.Env[np.ndarray, np.ndarray]):
         self.ship_length_m = float(params.l)
         self.ship_cfg.ship_length_m = float(params.l)
 
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(4,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(6,), dtype=np.float32)
 
         o = self.ship_cfg
         obs_high = np.array(
@@ -123,8 +123,8 @@ class VesselDPEnv(gym.Env[np.ndarray, np.ndarray]):
         )
 
         self.state = np.zeros(12, dtype=float)
-        self.applied_action = np.zeros(4, dtype=float)
-        self.prev_applied_action = np.zeros(4, dtype=float)
+        self.applied_action = np.zeros(6, dtype=float)
+        self.prev_applied_action = np.zeros(6, dtype=float)
         self.current_control = np.zeros(6, dtype=float)
         self.time_s = 0.0
 
@@ -166,9 +166,11 @@ class VesselDPEnv(gym.Env[np.ndarray, np.ndarray]):
         self.target_yaw_rad = math.radians(float(t.target_yaw_deg))
 
     def _action_to_control(self, applied_action):
-        rpm = np.asarray(applied_action, dtype=float).reshape(4) * self.params.n_max
-        a1 = math.radians(self.ship_cfg.fixed_azimuth_deg[0])
-        a2 = math.radians(self.ship_cfg.fixed_azimuth_deg[1])
+        action = np.asarray(applied_action, dtype=float).reshape(6)
+        rpm = action[0:4] * self.params.n_max
+        az_max = math.radians(float(self.ship_cfg.azimuth_max_deg))
+        a1 = float(action[4]) * az_max
+        a2 = float(action[5]) * az_max
         return np.array([rpm[0], rpm[1], rpm[2], rpm[3], a1, a2], dtype=float)
 
     def _integrate_state(self, control):
@@ -238,7 +240,7 @@ class VesselDPEnv(gym.Env[np.ndarray, np.ndarray]):
 
     def step(self, action):
         self.prev_applied_action = self.applied_action.copy()
-        self.applied_action = np.clip(np.asarray(action, dtype=float).reshape(4), -1.0, 1.0)
+        self.applied_action = np.clip(np.asarray(action, dtype=float).reshape(6), -1.0, 1.0)
         self.current_control = self._action_to_control(self.applied_action)
 
         self.state = self._integrate_state(self.current_control)

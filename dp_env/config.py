@@ -7,6 +7,7 @@ class ShipConfig:
     control_point_y_m: float = 0.0
     distance_clip_ship_lengths: float = 1.5
     fixed_azimuth_deg: tuple[float, float] = (0.0, 0.0)
+    azimuth_max_deg: float = 60.0
     current_speed: float = 0.0
     current_direction_deg: float = 0.0
     wind_speed: float = 0.0
