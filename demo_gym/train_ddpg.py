@@ -22,7 +22,7 @@ from tianshou.utils import TensorboardLogger
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.continuous import ContinuousActorDeterministic, ContinuousCritic
 
-from dp_env import VesselDPEnv, EnvConfig
+from dp_env import VesselDPEnv, EnvConfig, ActionMaskWrapper
 from my_reward import CustomRewardWrapper
 
 # ── hyper-parameters (fixed) ────────────────────────────────────────────
@@ -49,6 +49,7 @@ def _make_env(cfg):
     """Closure factory for SubprocVectorEnv (must be pickle-safe)."""
     c = copy.deepcopy(cfg)
     env = VesselDPEnv(c)
+    env = ActionMaskWrapper(env, mode="legacy_4d_fixed_azimuth")
     env = CustomRewardWrapper(env)
     return env
 

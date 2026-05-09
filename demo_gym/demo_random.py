@@ -1,6 +1,6 @@
 """Minimal demo: random actions on VesselDPEnv + CustomRewardWrapper."""
 import numpy as np
-from dp_env import VesselDPEnv, EnvConfig
+from dp_env import VesselDPEnv, EnvConfig, ActionMaskWrapper
 from my_reward import CustomRewardWrapper
 
 cfg = EnvConfig()
@@ -8,6 +8,7 @@ cfg.ship.current_speed = 0.3
 cfg.task.timeout_s = 20.0
 
 env = VesselDPEnv(cfg)
+env = ActionMaskWrapper(env, mode="legacy_4d_fixed_azimuth")
 env = CustomRewardWrapper(env)
 obs, info = env.reset(seed=42)
 
@@ -22,7 +23,7 @@ print("-" * 80)
 
 total_reward = 0.0
 while True:
-    action = np.random.uniform(-1, 1, (4,)).astype(np.float32)
+    action = np.random.uniform(-1, 1, env.action_space.shape).astype(np.float32)
     obs, reward, terminated, truncated, info = env.step(action)
 
     total_reward += reward

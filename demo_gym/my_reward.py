@@ -74,7 +74,7 @@ class CustomRewardWrapper(gym.Wrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self._prev_action = np.zeros(4, dtype=np.float32)
+        self._prev_action = np.zeros(self.action_space.shape[0], dtype=np.float32)
 
     def step(self, action):
         obs, _reward, terminated, truncated, info = self.env.step(action)
@@ -88,5 +88,5 @@ class CustomRewardWrapper(gym.Wrapper):
 
     def reset(self, *, seed=None, options=None):
         obs, info = self.env.reset(seed=seed, options=options)
-        self._prev_action = np.zeros(4, dtype=np.float32)
+        self._prev_action = np.zeros(self.action_space.shape[0], dtype=np.float32)
         return obs, info
