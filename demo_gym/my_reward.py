@@ -13,7 +13,7 @@ import gymnasium as gym
 import numpy as np
 
 
-def compute_custom_reward(env, info, prev_action, terminated, truncated):
+def compute_custom_reward(env, info, prev_env_action, terminated, truncated):
     """Custom DP reward: distance + yaw
 
     All state variables are extracted from info dict.  Edit this function
@@ -37,12 +37,12 @@ def compute_custom_reward(env, info, prev_action, terminated, truncated):
     speed_penalty = -0.3 * speed
 
     # --- action smoothness penalty ---
-    applied = info["applied_action"]
+    applied = np.asarray(info.get("env_action", info["applied_action"]), dtype=float)
     dt = env.task_cfg.control_dt
-    if len(prev_action) == 0:
+    if len(prev_env_action) == 0:
         action_rate = 0.0
     else:
-        delta = (applied - prev_action) / max(dt, 1e-6)
+        delta = (applied - prev_env_action) / max(dt, 1e-6)
         action_rate = float(np.mean(delta ** 2))
     action_penalty = -0.001 * action_rate
 
@@ -74,19 +74,21 @@ class CustomRewardWrapper(gym.Wrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self._prev_action = np.zeros(self.action_space.shape[0], dtype=np.float32)
+        self._base_env = self.unwrapped
+        self._prev_env_action = np.zeros(6, dtype=np.float32)
 
     def step(self, action):
         obs, _reward, terminated, truncated, info = self.env.step(action)
+        curr_env_action = np.asarray(info.get("env_action", info["applied_action"]), dtype=float)
         r, terms = compute_custom_reward(
-            self.env, info, self._prev_action.copy(), terminated, truncated
+            self._base_env, info, self._prev_env_action.copy(), terminated, truncated
         )
-        self._prev_action = info["applied_action"].copy()
+        self._prev_env_action = curr_env_action.copy()
         info["reward"] = float(r)
         info["reward_terms"] = terms
         return obs, float(r), terminated, truncated, info
 
     def reset(self, *, seed=None, options=None):
         obs, info = self.env.reset(seed=seed, options=options)
-        self._prev_action = np.zeros(self.action_space.shape[0], dtype=np.float32)
+        self._prev_env_action = np.zeros(6, dtype=np.float32)
         return obs, info
